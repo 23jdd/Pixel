@@ -24,7 +24,7 @@ Pixel 是一个使用 Rust 和 [Slint](https://slint.dev/) 编写的轻量级像
 ## 运行
 
 ```bash
-cargo install --git https://github.com/23jdd/pixel
+cargo install --git https://github.com/23jdd/Pixel
 pixel
 ```
 
