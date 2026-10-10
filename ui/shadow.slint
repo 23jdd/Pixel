@@ -1,0 +1,33 @@
+
+export  component ShadowText inherits Rectangle {
+    in property <string> text;
+    in property <length> font-size: 32px;
+    in property <brush> shadow-color: #00000080;
+    in property <brush> text-color;
+    in property <TextHorizontalAlignment> horizontal-alignment;
+    in property <TextVerticalAlignment> vertical-alignment;
+    Text {
+        x: 2px;
+        y: 2px;
+        width: root.width;
+        height: root.height;
+        text: root.text;
+        font-size: root.font-size;
+        color: root.shadow-color;
+        horizontal-alignment: root.horizontal-alignment;
+        vertical-alignment:  root.vertical-alignment;
+    }
+
+    Text {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        text: root.text;
+        font-size: root.font-size;
+        color: root.text-color;
+         horizontal-alignment: root.horizontal-alignment;
+                vertical-alignment:  root.vertical-alignment;
+    }
+}
+

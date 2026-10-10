@@ -1,0 +1,277 @@
+import { Slider, LineEdit } from "std-widgets.slint";
+import { ShadowText } from "shadow.slint";
+
+component ActionButton inherits Rectangle {
+    in property <string> label;
+    callback clicked;
+    height: 34px;
+    min-width: 72px;
+    border-radius: 7px;
+    background: touch.pressed ? #303b55 : touch.has-hover ? #273149 : transparent;
+    ShadowText { text: root.label; text-color: #dce4f4; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
+    touch := TouchArea { clicked => { root.clicked(); } }
+}
+
+component SizeButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> active;
+    callback clicked;
+    height: 30px;
+    border-radius: 6px;
+    background: root.active ? #3e63dd : touch.has-hover ? #273149 : #1c2536;
+    Text {
+        text: root.label;
+        color: root.active ? #ffffff : #9daac2;
+        font-size: 11px;
+        font-weight: root.active ? 700 : 400;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    touch := TouchArea { clicked => { root.clicked(); } }
+}
+
+component ToolButton inherits Rectangle {
+    in property <string> icon;
+    in property <string> label;
+    in property <bool> active;
+    callback clicked;
+    height: 66px;
+    border-radius: 10px;
+    background: root.active ? #3e63dd : touch.has-hover ? #222c41 : transparent;
+    VerticalLayout {
+        padding-top: 9px; padding-bottom: 7px; spacing: 3px;
+        ShadowText { text: root.icon; text-color: #ffffff; font-size: 22px; horizontal-alignment: center; }
+        //ShadowText {text: root.icon;  text-color: #ffffff; font-size: 22px;}
+        Text { text: root.label; color: root.active ? #ffffff : #9daac2; font-size: 11px; horizontal-alignment: center; }
+
+    }
+    touch := TouchArea { clicked => { root.clicked(); } }
+}
+
+component PaletteColor inherits Rectangle {
+    in property <color> swatch;
+    in property <bool> selected;
+    callback clicked;
+    width: 42px; height: 42px; border-radius: 8px;
+    background: root.selected ? #ffffff : transparent;
+    Rectangle {
+        x: 4px; y: 4px; width: parent.width - 8px; height: parent.height - 8px;
+        border-radius: 6px; background: root.swatch;
+        border-width: 1px; border-color: #ffffff55;
+    }
+    touch := TouchArea { clicked => { root.clicked(); } }
+}
+
+component ChannelControl inherits Rectangle {
+    in property <string> name;
+    in-out property <float> value;
+    callback changed(float);
+    height: 43px; background: transparent;
+    HorizontalLayout {
+        spacing: 8px;
+        Text { width: 16px; text: root.name; color: #9daac2; font-size: 12px; vertical-alignment: center; }
+        Slider { value <=> root.value; minimum: 0; maximum: 255; changed(value) => { root.changed(value); } }
+        Text { width: 28px; text: round(root.value); color: #dce4f4; font-size: 11px; horizontal-alignment: right; vertical-alignment: center; }
+    }
+}
+
+export component App inherits Window {
+    title: "Pixie — Pixel Editor";
+    preferred-width: 1120px;
+    preferred-height: 760px;
+    min-width: 900px;
+    min-height: 620px;
+    background: #111722;
+
+    in property <[color]> pixels;
+    in property <[color]> palette;
+    in property <image> canvas-image;
+    in-out property <color> active-color: #ffcc66;
+    in-out property <int> tool: 0;
+    in-out property <bool> show-grid: true;
+    in-out property <float> color-red: 255;
+    in-out property <float> color-green: 204;
+    in-out property <float> color-blue: 102;
+    in-out property <string> status-text: "Ready";
+    in-out property <string> document-name: "Untitled.pixel.json";
+    in-out property <bool> modified: false;
+    in-out property <int> canvas-size: 32;
+    in-out property <string> custom-size-text: "32";
+    property <bool> drawing: false;
+
+    callback paint(int, int);
+    callback pick-color(int, int);
+    callback begin-stroke();
+    callback end-stroke();
+    callback new-project();
+    callback open-project();
+    callback save-project();
+    callback save-project-as();
+    callback export-png();
+    callback undo();
+    callback redo();
+    callback clear-canvas();
+    callback choose-color(color);
+    callback read();
+    callback resize-canvas(int);
+    callback resize-custom(string);
+
+    VerticalLayout {
+        spacing: 0px;
+        Rectangle {
+            height: 58px; background: #171e2d;
+            HorizontalLayout {
+                padding-left: 18px; padding-right: 18px; spacing: 4px;
+                Text { width: 112px; text: "PIXIE"; color: #ffffff; font-weight: 700; font-size: 20px; vertical-alignment: center; }
+                ActionButton { label: "New"; clicked => { root.new-project(); } }
+                ActionButton { label: "Open"; clicked => { root.open-project(); } }
+                ActionButton { label: "Save"; clicked => { root.save-project(); } }
+                ActionButton { label: "Save As"; clicked => { root.save-project-as(); } }
+                ActionButton { label: "Read"; clicked => { root.read(); } }
+                Rectangle { horizontal-stretch: 1; background: transparent; }
+                ActionButton { label: "Undo"; clicked => { root.undo(); } }
+                ActionButton { label: "Redo"; clicked => { root.redo(); } }
+                Rectangle { width: 10px; background: transparent; }
+                Rectangle {
+                    width: 112px; height: 34px; border-radius: 7px; background: #ffcc66;
+                    Text { text: "Export PNG"; color: #17130a; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+                    TouchArea { clicked => { root.export-png(); } }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 0px;
+            Rectangle {
+                width: 92px; background: #151c2a;
+                VerticalLayout {
+                    padding: 12px; spacing: 8px;
+                    ToolButton { icon: "铅笔"; label: "Pencil"; active: root.tool == 0; clicked => { root.tool = 0; } }
+                    ToolButton { icon: "橡皮"; label: "Eraser"; active: root.tool == 1; clicked => { root.tool = 1; } }
+                    ToolButton { icon: "拾取器"; label: "Picker"; active: root.tool == 2; clicked => { root.tool = 2; } }
+                    Rectangle { vertical-stretch: 1; background: transparent; }
+                    ToolButton { icon: "G"; label: "Grid"; active: root.show-grid; clicked => { root.show-grid = !root.show-grid; } }
+                }
+            }
+
+            Rectangle {
+                background: #0d121b;
+                Rectangle {
+                    width: min(parent.width - 72px, parent.height - 72px); height: self.width;
+                    x: (parent.width - self.width) / 2 + 8px; y: (parent.height - self.height) / 2 + 10px;
+                    background: #00000055; border-radius: 5px;
+                }
+                canvas := Rectangle {
+                    width: min(parent.width - 72px, parent.height - 72px); height: self.width;
+                    x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+                    background: #ffffff; clip: true;
+                    Image {
+                        width: parent.width;
+                        height: parent.height;
+                        source: root.canvas-image;
+                        image-fit: fill;
+                        image-rendering: pixelated;
+                    }
+                    for line[i] in root.canvas-size + 1 : Rectangle {
+                        x: i * parent.width / root.canvas-size;
+                        width: root.show-grid ? 1px : 0px;
+                        height: parent.height;
+                        background: #35415755;
+                    }
+                    for line[i] in root.canvas-size + 1 : Rectangle {
+                        y: i * parent.height / root.canvas-size;
+                        height: root.show-grid ? 1px : 0px;
+                        width: parent.width;
+                        background: #35415755;
+                    }
+                    input := TouchArea {
+                        width: parent.width;
+                        height: parent.height;
+                        z: 100;
+                        mouse-cursor: crosshair;
+                        pointer-event(event) => {
+                            if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                                if root.tool == 2 {
+                                    root.paint(floor(self.mouse-x / (self.width / root.canvas-size)), floor(self.mouse-y / (self.height / root.canvas-size)));
+                                } else {
+                                    root.drawing = true;
+                                    root.begin-stroke();
+                                    root.paint(floor(self.mouse-x / (self.width / root.canvas-size)), floor(self.mouse-y / (self.height / root.canvas-size)));
+                                }
+                            }
+                            if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
+                                root.drawing = false;
+                                root.pick-color(floor(self.mouse-x / (self.width / root.canvas-size)), floor(self.mouse-y / (self.height / root.canvas-size)));
+                            }
+                            if event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel {
+                                if root.drawing { root.end-stroke(); }
+                                root.drawing = false;
+                            }
+                        }
+                        moved => {
+                            if root.drawing { root.paint(floor(self.mouse-x / (self.width / root.canvas-size)), floor(self.mouse-y / (self.height / root.canvas-size))); }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                width: 250px; background: #171e2d;
+                VerticalLayout {
+                    padding: 18px; spacing: 12px;
+                    Text { height: 24px; text: "COLOR"; color: #7f8ca5; font-size: 11px; font-weight: 700; }
+                    Rectangle {
+                        height: 64px; border-radius: 10px; background: #111722;
+                        Rectangle { x: 8px; y: 8px; width: 48px; height: 48px; border-radius: 8px; background: root.active-color; border-width: 1px; border-color: #ffffff44; }
+                        Text { x: 70px; width: parent.width - 82px; height: parent.height; text: "Current color"; color: #dce4f4; font-size: 13px; vertical-alignment: center; }
+                    }
+                    ChannelControl { name: "R"; value <=> root.color-red; changed(v) => { root.active-color = rgb(v, root.color-green, root.color-blue); root.tool = 0; } }
+                    ChannelControl { name: "G"; value <=> root.color-green; changed(v) => { root.active-color = rgb(root.color-red, v, root.color-blue); root.tool = 0; } }
+                    ChannelControl { name: "B"; value <=> root.color-blue; changed(v) => { root.active-color = rgb(root.color-red, root.color-green, v); root.tool = 0; } }
+                    Text { height: 24px; text: "PALETTE"; color: #7f8ca5; font-size: 11px; font-weight: 700; }
+                    GridLayout {
+                        height: 168px; spacing: 6px;
+                        for swatch[i] in root.palette : PaletteColor {
+                            col: mod(i, 4); row: floor(i / 4); swatch: swatch;
+                            selected: root.active-color == swatch;
+                            clicked => { root.choose-color(swatch); root.tool = 0; }
+                        }
+                    }
+                    Rectangle { vertical-stretch: 1; background: transparent; }
+                    ActionButton { label: "Clear canvas"; clicked => { root.clear-canvas(); } }
+                    Rectangle {
+                        height: 124px; border-radius: 9px; background: #111722;
+                        VerticalLayout { padding: 10px; spacing: 7px;
+                            Text { text: "CANVAS SIZE · " + root.canvas-size + " × " + root.canvas-size; color: #7f8ca5; font-size: 10px; }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                SizeButton { label: "32"; active: root.canvas-size == 32; clicked => { root.resize-canvas(32); } }
+                                SizeButton { label: "64"; active: root.canvas-size == 64; clicked => { root.resize-canvas(64); } }
+                                SizeButton { label: "128"; active: root.canvas-size == 128; clicked => { root.resize-canvas(128); } }
+                            }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                LineEdit {
+                                    text <=> root.custom-size-text;
+                                    input-type: number;
+                                    placeholder-text: "32–256";
+                                    accepted(text) => { root.resize-custom(text); }
+                                }
+                                SizeButton { width: 58px; label: "Apply"; active: false; clicked => { root.resize-custom(root.custom-size-text); } }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            height: 30px; background: #171e2d;
+            HorizontalLayout { padding-left: 14px; padding-right: 14px;
+                Text { text: (root.modified ? "●  " : "") + root.document-name; color: root.modified ? #ffcc66 : #9daac2; font-size: 11px; vertical-alignment: center; }
+                Rectangle { horizontal-stretch: 1; background: transparent; }
+                Text { text: root.status-text; color: #7f8ca5; font-size: 11px; vertical-alignment: center; horizontal-alignment: right; }
+            }
+        }
+    }
+}
